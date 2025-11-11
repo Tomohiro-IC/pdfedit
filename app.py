@@ -307,13 +307,13 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の印鑑画像を追加（左端から163mm、上端から96mm）
+            # 固定の印鑑画像を追加（左端から162mm、上端から93mm）
             stamp_path = get_stamp_image()
             if stamp_path:
-                stamp_x = 163 * MM_TO_POINTS
-                stamp_y = 96 * MM_TO_POINTS
-                stamp_width = 25 * MM_TO_POINTS   # 幅25mm
-                stamp_height = 25 * MM_TO_POINTS  # 高さ25mm
+                stamp_x = 162 * MM_TO_POINTS
+                stamp_y = 93 * MM_TO_POINTS
+                stamp_width = 24 * MM_TO_POINTS   # 幅24mm
+                stamp_height = 24 * MM_TO_POINTS  # 高さ24mm
 
                 # 画像を挿入する矩形領域を定義
                 rect = fitz.Rect(stamp_x, stamp_y, stamp_x + stamp_width, stamp_y + stamp_height)
