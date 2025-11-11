@@ -203,9 +203,16 @@ def upload_file():
         return jsonify({'success': False, 'message': '年月日は数値で入力してください'}), 400
 
     # ファイルを保存
-    filename = secure_filename(file.filename)
+    # 元のファイル名を保持（日本語対応）
+    original_filename = file.filename
+    # ファイルシステム用の安全なファイル名
+    safe_filename = secure_filename(file.filename)
+    # safe_filenameが空の場合（全て非ASCII文字の場合）、UUIDを使用
+    if not safe_filename:
+        safe_filename = f"{uuid.uuid4()}.pdf"
+
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    input_filename = f"{timestamp}_{filename}"
+    input_filename = f"{timestamp}_{safe_filename}"
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], input_filename)
     file.save(input_path)
 
@@ -219,8 +226,9 @@ def upload_file():
 
     if success:
         # ダウンロードファイル名: 元のファイル名_yyyyMMddHHmmss.pdf
+        # 元の日本語ファイル名を使用
         download_timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        base_name = original_filename.rsplit('.', 1)[0] if '.' in original_filename else original_filename
         download_filename = f"{base_name}_{download_timestamp}.pdf"
 
         return jsonify({
@@ -255,11 +263,12 @@ def download_file(file_id):
 
         # 日本語ファイル名対応のContent-Dispositionヘッダーを作成
         # RFC 5987に従って、ASCIIフォールバックとUTF-8エンコードの両方を提供
-        encoded_filename = quote(download_filename.encode('utf-8'))
+        # quoteは文字列を受け取り、UTF-8としてエンコードしてからパーセントエンコードする
+        encoded_filename = quote(download_filename)
 
         # ASCIIフォールバック用のファイル名（日本語を削除）
         ascii_filename = download_filename.encode('ascii', 'ignore').decode('ascii')
-        if not ascii_filename:
+        if not ascii_filename or len(ascii_filename) < 4:
             ascii_filename = 'output.pdf'
 
         # Content-Dispositionヘッダー
