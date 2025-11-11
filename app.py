@@ -24,6 +24,7 @@ app.secret_key = 'your-secret-key-change-this-in-production'
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
 FONT_FOLDER = 'fonts'
+STAMP_FOLDER = 'stamps'
 ALLOWED_EXTENSIONS = {'pdf'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 FILE_AGE_MINUTES = 5  # 古いファイルを削除する時間（分）
@@ -34,7 +35,7 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
 # フォルダを作成
-for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER, FONT_FOLDER]:
+for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER, FONT_FOLDER, STAMP_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 # バージョン情報のキャッシュ
@@ -181,6 +182,16 @@ def get_japanese_font():
     return None
 
 
+def get_stamp_image():
+    """
+    印鑑画像のパスを取得
+    """
+    stamp_path = os.path.join(STAMP_FOLDER, 'company_seal.png')
+    if os.path.exists(stamp_path):
+        return stamp_path
+    return None
+
+
 def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
     """
     PDFの右上に日付を追加
@@ -295,6 +306,18 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontname=fontname,
                 fontfile=fontfile
             )
+
+            # 固定の印鑑画像を追加（左端から163mm、上端から96mm）
+            stamp_path = get_stamp_image()
+            if stamp_path:
+                stamp_x = 163 * MM_TO_POINTS
+                stamp_y = 96 * MM_TO_POINTS
+                stamp_width = 15 * MM_TO_POINTS   # 幅15mm
+                stamp_height = 15 * MM_TO_POINTS  # 高さ15mm
+
+                # 画像を挿入する矩形領域を定義
+                rect = fitz.Rect(stamp_x, stamp_y, stamp_x + stamp_width, stamp_y + stamp_height)
+                page.insert_image(rect, filename=stamp_path)
         else:
             # フォールバック: 組み込みフォントを使用（日本語は正しく表示されない可能性）
             return False, "日本語フォントが見つかりません。fontsフォルダにNotoSansJP-Regular.ttfなどの日本語フォントを配置してください。"
