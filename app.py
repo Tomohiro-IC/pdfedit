@@ -229,12 +229,26 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
             fontfile = font_path
             fontname = "myfont"
 
-            # テキストを挿入
+            # 日付テキストを挿入
             # insert_textは指定座標（ベースライン）にテキストを配置
             page.insert_text(
                 (x, y),
                 date_text,
                 fontsize=font_size,
+                fontname=fontname,
+                fontfile=fontfile
+            )
+
+            # 固定の住所テキストを追加（左端から115mm、上端から95mm）
+            address_text = "三重県松阪市湊町１９０番地１"
+            address_x = 115 * MM_TO_POINTS
+            address_y = 95 * MM_TO_POINTS
+            address_font_size = 13
+
+            page.insert_text(
+                (address_x, address_y),
+                address_text,
+                fontsize=address_font_size,
                 fontname=fontname,
                 fontfile=fontfile
             )
@@ -246,7 +260,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         doc.save(output_pdf_path)
         doc.close()
 
-        return True, f"日付「{date_text}」をPDFに追加しました"
+        return True, f"日付「{date_text}」と住所「三重県松阪市湊町１９０番地１」をPDFに追加しました"
 
     except Exception as e:
         return False, f"エラーが発生しました: {str(e)}"
