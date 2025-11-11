@@ -6,15 +6,15 @@ PDFファイルをアップロードし、年月日を入力してPDFの右上�
 
 import os
 import fitz  # PyMuPDF
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response
 from werkzeug.utils import secure_filename
 from datetime import datetime
-import tempfile
 import uuid
 from urllib.parse import quote
 import json
 import time
 import subprocess
+from pathlib import Path
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
@@ -25,60 +25,70 @@ OUTPUT_FOLDER = 'outputs'
 FONT_FOLDER = 'fonts'
 ALLOWED_EXTENSIONS = {'pdf'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
+FILE_AGE_MINUTES = 5  # 古いファイルを削除する時間（分）
+MM_TO_POINTS = 2.83465  # mmからポイントへの変換係数
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
 # フォルダを作成
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-os.makedirs(FONT_FOLDER, exist_ok=True)
+for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER, FONT_FOLDER]:
+    os.makedirs(folder, exist_ok=True)
+
+# バージョン情報のキャッシュ
+_version_cache = None
 
 
 def get_version_info():
     """
-    バージョン情報を取得
-    優先順位: VERSIONファイル > Gitコマンド > unknown
+    バージョン情報を取得（キャッシュ付き）
+    優先順位: キャッシュ > VERSIONファイル > Gitコマンド > unknown
     """
-    # 1. VERSIONファイルから読み込み（本番環境用）
-    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
-    if os.path.exists(version_file):
+    global _version_cache
+
+    # キャッシュがあれば返す
+    if _version_cache:
+        return _version_cache
+
+    # VERSIONファイルから読み込み（本番環境）
+    version_file = Path(__file__).parent / 'VERSION'
+    if version_file.exists():
         try:
-            with open(version_file, 'r', encoding='utf-8') as f:
-                return f.read().strip()
-        except Exception:
+            _version_cache = version_file.read_text(encoding='utf-8').strip()
+            return _version_cache
+        except (IOError, OSError):
             pass
 
-    # 2. Gitコマンドから取得（開発環境用）
+    # Gitコマンドから取得（開発環境）
     try:
-        # Gitコミットハッシュを取得（短縮版）
+        cwd = Path(__file__).parent or Path('.')
         commit_hash = subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
             stderr=subprocess.DEVNULL,
-            cwd=os.path.dirname(__file__) or '.'
-        ).decode('utf-8').strip()
+            cwd=str(cwd),
+            text=True
+        ).strip()
 
-        # コミット日時を取得
         commit_date = subprocess.check_output(
             ['git', 'log', '-1', '--format=%cd', '--date=format:%Y-%m-%d %H:%M'],
             stderr=subprocess.DEVNULL,
-            cwd=os.path.dirname(__file__) or '.'
-        ).decode('utf-8').strip()
+            cwd=str(cwd),
+            text=True
+        ).strip()
 
-        version = f"v{commit_hash} ({commit_date})"
+        _version_cache = f"v{commit_hash} ({commit_date})"
 
         # VERSIONファイルに保存（次回用）
         try:
-            with open(version_file, 'w', encoding='utf-8') as f:
-                f.write(version)
-        except Exception:
+            version_file.write_text(_version_cache, encoding='utf-8')
+        except (IOError, OSError):
             pass
 
-        return version
-    except Exception:
-        # Gitが使えない場合
-        return "unknown"
+        return _version_cache
+    except (subprocess.SubprocessError, OSError):
+        _version_cache = "unknown"
+        return _version_cache
 
 
 def allowed_file(filename):
@@ -86,7 +96,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def cleanup_old_files(age_minutes=5):
+def cleanup_old_files(age_minutes=FILE_AGE_MINUTES):
     """
     指定時間より古いファイルを削除
 
@@ -95,37 +105,39 @@ def cleanup_old_files(age_minutes=5):
     """
     current_time = time.time()
     age_seconds = age_minutes * 60
-    deleted_count = 0
+    deleted_files = []
 
     # uploadsフォルダとoutputsフォルダをクリーンアップ
     for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER]:
-        if not os.path.exists(folder):
+        folder_path = Path(folder)
+        if not folder_path.exists():
             continue
 
         try:
-            for filename in os.listdir(folder):
-                file_path = os.path.join(folder, filename)
+            # 古いファイルをフィルタリング
+            old_files = [
+                f for f in folder_path.iterdir()
+                if f.is_file() and (current_time - f.stat().st_mtime) > age_seconds
+            ]
 
-                # ファイルのみ処理（ディレクトリは除外）
-                if not os.path.isfile(file_path):
-                    continue
-
-                # ファイルの最終更新時刻を取得
-                file_mtime = os.path.getmtime(file_path)
-                file_age = current_time - file_mtime
-
-                # 指定時間より古いファイルを削除
-                if file_age > age_seconds:
-                    os.remove(file_path)
-                    deleted_count += 1
-                    print(f"古いファイルを削除: {file_path} (経過時間: {file_age/60:.1f}分)")
-        except Exception as e:
+            # 削除処理
+            for file_path in old_files:
+                try:
+                    file_age = current_time - file_path.stat().st_mtime
+                    file_path.unlink()
+                    deleted_files.append((str(file_path), file_age / 60))
+                except OSError as e:
+                    print(f"削除失敗: {file_path} - {e}")
+        except OSError as e:
             print(f"クリーンアップエラー ({folder}): {e}")
 
-    if deleted_count > 0:
-        print(f"合計 {deleted_count} 個の古いファイルを削除しました")
+    # ログ出力
+    if deleted_files:
+        for path, age in deleted_files:
+            print(f"古いファイルを削除: {path} (経過時間: {age:.1f}分)")
+        print(f"合計 {len(deleted_files)} 個の古いファイルを削除しました")
 
-    return deleted_count
+    return len(deleted_files)
 
 
 def get_japanese_font():
@@ -191,25 +203,19 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         # 日付テキストを作成
         date_text = f"{year}年{month}月{day}日"
 
-        # 座標を計算
-        # 左上から：上端から20mm下、左端から150mm右の位置
-        # PDF座標系は左下が原点なので、y座標を変換
-        # mm → ポイント変換: 1mm = 2.83465ポイント
-        margin_from_top = 20 * 2.83465  # 20mm = 56.7ポイント
-        margin_from_left = 150 * 2.83465  # 150mm = 425.2ポイント
+        # 座標を計算（左上から：上端から20mm下、左端から150mm右）
+        margin_from_top = 20 * MM_TO_POINTS
+        margin_from_left = 150 * MM_TO_POINTS
 
-        # PDF座標系での位置（左下原点）
-        # 上端から20mm下の位置を計算
+        # PDF座標系での位置（左下原点なのでy座標を変換）
         x = margin_from_left
-        # ページ上端（page_height）から20mm下に配置
         y = page_height - margin_from_top
 
         # 日本語フォントを取得
         font_path = get_japanese_font()
 
         if font_path:
-            # カスタムフォントを使用
-            # フォントサイズ（2pt小さく）
+            # フォントサイズ（元は12pt、2pt小さく）
             font_size = 10
 
             # insert_textで直接テキストを配置（座標が明確）
@@ -246,49 +252,46 @@ def index():
     return render_template('index.html', version=version)
 
 
+def _error_response(message, status_code=400):
+    """エラーレスポンスを返す"""
+    return jsonify({'success': False, 'message': message}), status_code
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """PDFアップロードと日付追加処理"""
-    # 古いファイルをクリーンアップ（5分以上前のファイルを削除）
-    cleanup_old_files(age_minutes=5)
+    # 古いファイルをクリーンアップ
+    cleanup_old_files()
 
     # ファイルがアップロードされているかチェック
-    if 'pdf_file' not in request.files:
-        return jsonify({'success': False, 'message': 'PDFファイルが選択されていません'}), 400
+    if 'pdf_file' not in request.files or request.files['pdf_file'].filename == '':
+        return _error_response('PDFファイルが選択されていません')
 
     file = request.files['pdf_file']
 
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'PDFファイルが選択されていません'}), 400
-
     # ファイル形式チェック
     if not allowed_file(file.filename):
-        return jsonify({'success': False, 'message': 'PDFファイルのみアップロード可能です'}), 400
+        return _error_response('PDFファイルのみアップロード可能です')
 
-    # 年月日を取得
+    # 年月日を取得とバリデーション
     try:
         year = int(request.form['year'])
         month = int(request.form['month'])
         day = int(request.form['day'])
 
-        # 日付の妥当性チェック
+        # 範囲チェック
         if not (1900 <= year <= 2100):
-            return jsonify({'success': False, 'message': '年は1900から2100の範囲で入力してください'}), 400
-
+            return _error_response('年は1900から2100の範囲で入力してください')
         if not (1 <= month <= 12):
-            return jsonify({'success': False, 'message': '月は1から12の範囲で入力してください'}), 400
-
+            return _error_response('月は1から12の範囲で入力してください')
         if not (1 <= day <= 31):
-            return jsonify({'success': False, 'message': '日は1から31の範囲で入力してください'}), 400
+            return _error_response('日は1から31の範囲で入力してください')
 
         # 日付の存在チェック
-        try:
-            datetime(year, month, day)
-        except ValueError:
-            return jsonify({'success': False, 'message': '無効な日付です'}), 400
+        datetime(year, month, day)
 
-    except ValueError:
-        return jsonify({'success': False, 'message': '年月日は数値で入力してください'}), 400
+    except ValueError as e:
+        return _error_response('年月日は正しい数値で入力してください')
 
     # ファイルを保存
     # 元のファイル名を保持（日本語対応）
@@ -312,77 +315,59 @@ def upload_file():
     # PDFに日付を追加
     success, message = add_date_to_pdf(input_path, output_path, year, month, day)
 
-    if success:
-        # メタデータを保存（ダウンロード後の削除用）
-        metadata = {
-            'input_path': input_path,
-            'output_path': output_path,
-            'timestamp': datetime.now().isoformat()
-        }
-        metadata_path = os.path.join(app.config['OUTPUT_FOLDER'], f"{file_id}.json")
-        with open(metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f)
-
-        # ダウンロードファイル名: 元のファイル名_yyyyMMddHHmmss.pdf
-        # 元の日本語ファイル名を使用
-        download_timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        base_name = original_filename.rsplit('.', 1)[0] if '.' in original_filename else original_filename
-        download_filename = f"{base_name}_{download_timestamp}.pdf"
-
-        return jsonify({
-            'success': True,
-            'message': message,
-            'file_id': file_id,
-            'download_filename': download_filename
-        })
-    else:
+    if not success:
         # 処理失敗時はアップロードファイルを削除
-        if os.path.exists(input_path):
-            os.remove(input_path)
-        return jsonify({'success': False, 'message': message}), 500
+        Path(input_path).unlink(missing_ok=True)
+        return _error_response(message, 500)
+
+    # メタデータを保存（ダウンロード後の削除用）
+    metadata_path = Path(OUTPUT_FOLDER) / f"{file_id}.json"
+    metadata_path.write_text(json.dumps({
+        'input_path': input_path,
+        'output_path': output_path,
+        'timestamp': datetime.now().isoformat()
+    }), encoding='utf-8')
+
+    # ダウンロードファイル名: 元のファイル名_yyyyMMddHHmmss.pdf
+    base_name = Path(original_filename).stem
+    download_filename = f"{base_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+
+    return jsonify({
+        'success': True,
+        'message': message,
+        'file_id': file_id,
+        'download_filename': download_filename
+    })
 
 
 @app.route('/download/<file_id>')
 def download_file(file_id):
     """処理済みPDFをダウンロード（日本語ファイル名対応）"""
     try:
-        # ファイル名をサニタイズ
+        # ファイルパスを構築
         safe_file_id = secure_filename(file_id)
-        output_filename = f"{safe_file_id}.pdf"
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-        metadata_path = os.path.join(app.config['OUTPUT_FOLDER'], f"{safe_file_id}.json")
+        output_path = Path(OUTPUT_FOLDER) / f"{safe_file_id}.pdf"
+        metadata_path = Path(OUTPUT_FOLDER) / f"{safe_file_id}.json"
 
-        # ファイルが存在するかチェック
-        if not os.path.exists(output_path):
+        # ファイルの存在確認
+        if not output_path.exists():
             return "ファイルが見つかりません", 404
 
         # メタデータを読み込む
         input_path = None
-        if os.path.exists(metadata_path):
-            with open(metadata_path, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
-                input_path = metadata.get('input_path')
+        if metadata_path.exists():
+            metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+            input_path = metadata.get('input_path')
 
-        # ダウンロードファイル名を取得（クエリパラメータから）
+        # ダウンロードファイル名を取得
         download_filename = request.args.get('filename', 'output.pdf')
 
-        # ファイルを読み込む
-        with open(output_path, 'rb') as f:
-            pdf_data = f.read()
+        # PDFデータを読み込む
+        pdf_data = output_path.read_bytes()
 
-        # 日本語ファイル名対応のContent-Dispositionヘッダーを作成
-        # RFC 5987に従って、ASCIIフォールバックとUTF-8エンコードの両方を提供
-        # quoteは文字列を受け取り、UTF-8としてエンコードしてからパーセントエンコードする
+        # 日本語ファイル名対応のContent-Dispositionヘッダー（RFC 5987準拠）
         encoded_filename = quote(download_filename)
-
-        # ASCIIフォールバック用のファイル名（日本語を削除）
-        ascii_filename = download_filename.encode('ascii', 'ignore').decode('ascii')
-        if not ascii_filename or len(ascii_filename) < 4:
-            ascii_filename = 'output.pdf'
-
-        # Content-Dispositionヘッダー
-        # filename: ASCIIフォールバック
-        # filename*: RFC 5987形式のUTF-8エンコード
+        ascii_filename = download_filename.encode('ascii', 'ignore').decode('ascii') or 'output.pdf'
         content_disposition = f"attachment; filename=\"{ascii_filename}\"; filename*=UTF-8''{encoded_filename}"
 
         # Responseを作成
@@ -399,23 +384,19 @@ def download_file(file_id):
         @response.call_on_close
         def cleanup():
             """レスポンス送信後にファイルを削除"""
-            try:
-                # 出力ファイルを削除
-                if os.path.exists(output_path):
-                    os.remove(output_path)
-                    print(f"削除: {output_path}")
+            files_to_delete = [
+                output_path,
+                metadata_path,
+                Path(input_path) if input_path else None
+            ]
 
-                # 入力ファイルを削除
-                if input_path and os.path.exists(input_path):
-                    os.remove(input_path)
-                    print(f"削除: {input_path}")
-
-                # メタデータファイルを削除
-                if os.path.exists(metadata_path):
-                    os.remove(metadata_path)
-                    print(f"削除: {metadata_path}")
-            except Exception as e:
-                print(f"ファイル削除エラー: {e}")
+            for file_path in files_to_delete:
+                if file_path:
+                    try:
+                        file_path.unlink(missing_ok=True)
+                        print(f"削除: {file_path}")
+                    except OSError as e:
+                        print(f"ファイル削除エラー: {file_path} - {e}")
 
         return response
     except Exception as e:
