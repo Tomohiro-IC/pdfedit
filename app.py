@@ -307,11 +307,11 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の印鑑画像を追加（左端から162mm、上端から93mm）
+            # 固定の印鑑画像を追加（左端から162mm、上端から92mm）
             stamp_path = get_stamp_image()
             if stamp_path:
                 stamp_x = 162 * MM_TO_POINTS
-                stamp_y = 93 * MM_TO_POINTS
+                stamp_y = 92 * MM_TO_POINTS
                 stamp_width = 24 * MM_TO_POINTS   # 幅24mm
                 stamp_height = 24 * MM_TO_POINTS  # 高さ24mm
 
