@@ -13,6 +13,7 @@ import tempfile
 import uuid
 from urllib.parse import quote
 import json
+import time
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
@@ -37,6 +38,48 @@ os.makedirs(FONT_FOLDER, exist_ok=True)
 def allowed_file(filename):
     """アップロード可能なファイルかチェック"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def cleanup_old_files(age_minutes=5):
+    """
+    指定時間より古いファイルを削除
+
+    Args:
+        age_minutes (int): この時間（分）より古いファイルを削除
+    """
+    current_time = time.time()
+    age_seconds = age_minutes * 60
+    deleted_count = 0
+
+    # uploadsフォルダとoutputsフォルダをクリーンアップ
+    for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER]:
+        if not os.path.exists(folder):
+            continue
+
+        try:
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+
+                # ファイルのみ処理（ディレクトリは除外）
+                if not os.path.isfile(file_path):
+                    continue
+
+                # ファイルの最終更新時刻を取得
+                file_mtime = os.path.getmtime(file_path)
+                file_age = current_time - file_mtime
+
+                # 指定時間より古いファイルを削除
+                if file_age > age_seconds:
+                    os.remove(file_path)
+                    deleted_count += 1
+                    print(f"古いファイルを削除: {file_path} (経過時間: {file_age/60:.1f}分)")
+        except Exception as e:
+            print(f"クリーンアップエラー ({folder}): {e}")
+
+    if deleted_count > 0:
+        print(f"合計 {deleted_count} 個の古いファイルを削除しました")
+
+    return deleted_count
 
 
 def get_japanese_font():
@@ -159,6 +202,9 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """PDFアップロードと日付追加処理"""
+    # 古いファイルをクリーンアップ（5分以上前のファイルを削除）
+    cleanup_old_files(age_minutes=5)
+
     # ファイルがアップロードされているかチェック
     if 'pdf_file' not in request.files:
         return jsonify({'success': False, 'message': 'PDFファイルが選択されていません'}), 400
