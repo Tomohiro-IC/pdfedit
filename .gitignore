@@ -36,6 +36,15 @@ ENV/
 *.pdf
 !sample.pdf
 
+# Flask uploads and outputs
+uploads/
+outputs/
+
+# Fonts
+fonts/*.ttf
+fonts/*.ttc
+fonts/*.otf
+
 # OS
 .DS_Store
 Thumbs.db
