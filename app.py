@@ -108,11 +108,11 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         margin_from_top = 20 * 2.83465  # 20mm = 56.7ポイント
         margin_from_left = 150 * 2.83465  # 150mm = 425.2ポイント
 
-        # PDF座標系での位置
-        # 上端からの距離を計算
+        # PDF座標系での位置（左下原点）
+        # 上端から20mm下の位置を計算
         x = margin_from_left
-        # テキストの上端がページ上端から20mm下になるように配置
-        y_top = page_height - margin_from_top
+        # ページ上端（page_height）から20mm下に配置
+        y = page_height - margin_from_top
 
         # 日本語フォントを取得
         font_path = get_japanese_font()
@@ -122,26 +122,18 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
             # フォントサイズ（2pt小さく）
             font_size = 10
 
-            # テキストボックスの領域を定義（左揃え）
-            # テキストの上端がy_topになるように、矩形を定義
-            text_width = 150  # 推定幅
-            text_height = 20  # テキストの高さ（フォントサイズ10pt + マージン）
-
-            # 矩形: 左下(x, y_top - text_height), 右上(x + text_width, y_top)
-            rect = fitz.Rect(x, y_top - text_height, x + text_width, y_top)
-
-            # カスタムフォントでテキストを挿入
+            # insert_textで直接テキストを配置（座標が明確）
             fontfile = font_path
             fontname = "myfont"
 
-            # フォントを登録
-            page.insert_textbox(
-                rect,
+            # テキストを挿入
+            # insert_textは指定座標（ベースライン）にテキストを配置
+            page.insert_text(
+                (x, y),
                 date_text,
                 fontsize=font_size,
                 fontname=fontname,
-                fontfile=fontfile,
-                align=0  # 左揃え
+                fontfile=fontfile
             )
         else:
             # フォールバック: 組み込みフォントを使用（日本語は正しく表示されない可能性）
