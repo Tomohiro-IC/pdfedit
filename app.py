@@ -6,11 +6,12 @@ PDFファイルをアップロードし、年月日を入力してPDFの右上�
 
 import os
 import fitz  # PyMuPDF
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, Response
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import tempfile
 import uuid
+from urllib.parse import quote
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
@@ -234,7 +235,7 @@ def upload_file():
 
 @app.route('/download/<file_id>')
 def download_file(file_id):
-    """処理済みPDFをダウンロード"""
+    """処理済みPDFをダウンロード（日本語ファイル名対応）"""
     try:
         # ファイル名をサニタイズ
         safe_file_id = secure_filename(file_id)
@@ -248,12 +249,35 @@ def download_file(file_id):
         # ダウンロードファイル名を取得（クエリパラメータから）
         download_filename = request.args.get('filename', 'output.pdf')
 
-        return send_file(
-            output_path,
-            as_attachment=True,
-            download_name=download_filename,
-            mimetype='application/pdf'
+        # ファイルを読み込む
+        with open(output_path, 'rb') as f:
+            pdf_data = f.read()
+
+        # 日本語ファイル名対応のContent-Dispositionヘッダーを作成
+        # RFC 5987に従って、ASCIIフォールバックとUTF-8エンコードの両方を提供
+        encoded_filename = quote(download_filename.encode('utf-8'))
+
+        # ASCIIフォールバック用のファイル名（日本語を削除）
+        ascii_filename = download_filename.encode('ascii', 'ignore').decode('ascii')
+        if not ascii_filename:
+            ascii_filename = 'output.pdf'
+
+        # Content-Dispositionヘッダー
+        # filename: ASCIIフォールバック
+        # filename*: RFC 5987形式のUTF-8エンコード
+        content_disposition = f"attachment; filename=\"{ascii_filename}\"; filename*=UTF-8''{encoded_filename}"
+
+        # Responseを作成
+        response = Response(
+            pdf_data,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': content_disposition,
+                'Content-Length': str(len(pdf_data))
+            }
         )
+
+        return response
     except Exception as e:
         return f"エラーが発生しました: {str(e)}", 500
 
