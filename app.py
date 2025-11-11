@@ -101,14 +101,14 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         date_text = f"{year}年{month}月{day}日"
 
         # 座標を計算
-        # 右上から：上から20mm、右から150mm離れた位置
+        # 左上から：上から20mm下、左から150mm右の位置
         # PDF座標系は左下が原点なので、y座標を変換
         # mm → ポイント変換: 1mm = 2.83465ポイント
         margin_from_top = 20 * 2.83465  # 20mm = 56.7ポイント
-        margin_from_right = 150 * 2.83465  # 150mm = 425.2ポイント
+        margin_from_left = 150 * 2.83465  # 150mm = 425.2ポイント
 
         # PDF座標系での位置
-        x = page_width - margin_from_right
+        x = margin_from_left
         y = page_height - margin_from_top
 
         # 日本語フォントを取得
@@ -116,16 +116,16 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
 
         if font_path:
             # カスタムフォントを使用
-            # フォントサイズ
-            font_size = 12
+            # フォントサイズ（2pt小さく）
+            font_size = 10
 
-            # テキストの幅を計算（右揃えにするため）
+            # テキストの幅を計算（左揃えにするため）
             # PyMuPDFでは直接テキスト幅を計算する方法が限られているので、
             # insert_textboxを使用
 
-            # テキストボックスの領域を定義（右揃え）
+            # テキストボックスの領域を定義（左揃え）
             text_width = 150  # 推定幅
-            rect = fitz.Rect(x - text_width, y - 20, x, y + 5)
+            rect = fitz.Rect(x, y - 20, x + text_width, y + 5)
 
             # カスタムフォントでテキストを挿入
             fontfile = font_path
@@ -138,7 +138,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontsize=font_size,
                 fontname=fontname,
                 fontfile=fontfile,
-                align=2  # 右揃え
+                align=0  # 左揃え
             )
         else:
             # フォールバック: 組み込みフォントを使用（日本語は正しく表示されない可能性）
