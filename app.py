@@ -101,10 +101,11 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         date_text = f"{year}年{month}月{day}日"
 
         # 座標を計算
-        # 右上から：上から50px、左から100px離れた位置
+        # 右上から：上から20mm、右から150mm離れた位置
         # PDF座標系は左下が原点なので、y座標を変換
-        margin_from_top = 50
-        margin_from_right = 100
+        # mm → ポイント変換: 1mm = 2.83465ポイント
+        margin_from_top = 20 * 2.83465  # 20mm = 56.7ポイント
+        margin_from_right = 150 * 2.83465  # 150mm = 425.2ポイント
 
         # PDF座標系での位置
         x = page_width - margin_from_right
