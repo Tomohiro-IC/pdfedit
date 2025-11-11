@@ -12,6 +12,7 @@ from datetime import datetime
 import tempfile
 import uuid
 from urllib.parse import quote
+import json
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
@@ -219,6 +220,16 @@ def upload_file():
     success, message = add_date_to_pdf(input_path, output_path, year, month, day)
 
     if success:
+        # メタデータを保存（ダウンロード後の削除用）
+        metadata = {
+            'input_path': input_path,
+            'output_path': output_path,
+            'timestamp': datetime.now().isoformat()
+        }
+        metadata_path = os.path.join(app.config['OUTPUT_FOLDER'], f"{file_id}.json")
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f)
+
         # ダウンロードファイル名: 元のファイル名_yyyyMMddHHmmss.pdf
         # 元の日本語ファイル名を使用
         download_timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -232,6 +243,9 @@ def upload_file():
             'download_filename': download_filename
         })
     else:
+        # 処理失敗時はアップロードファイルを削除
+        if os.path.exists(input_path):
+            os.remove(input_path)
         return jsonify({'success': False, 'message': message}), 500
 
 
@@ -243,10 +257,18 @@ def download_file(file_id):
         safe_file_id = secure_filename(file_id)
         output_filename = f"{safe_file_id}.pdf"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        metadata_path = os.path.join(app.config['OUTPUT_FOLDER'], f"{safe_file_id}.json")
 
         # ファイルが存在するかチェック
         if not os.path.exists(output_path):
             return "ファイルが見つかりません", 404
+
+        # メタデータを読み込む
+        input_path = None
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+                input_path = metadata.get('input_path')
 
         # ダウンロードファイル名を取得（クエリパラメータから）
         download_filename = request.args.get('filename', 'output.pdf')
@@ -279,6 +301,28 @@ def download_file(file_id):
                 'Content-Length': str(len(pdf_data))
             }
         )
+
+        # ダウンロード後にファイルを削除
+        @response.call_on_close
+        def cleanup():
+            """レスポンス送信後にファイルを削除"""
+            try:
+                # 出力ファイルを削除
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                    print(f"削除: {output_path}")
+
+                # 入力ファイルを削除
+                if input_path and os.path.exists(input_path):
+                    os.remove(input_path)
+                    print(f"削除: {input_path}")
+
+                # メタデータファイルを削除
+                if os.path.exists(metadata_path):
+                    os.remove(metadata_path)
+                    print(f"削除: {metadata_path}")
+            except Exception as e:
+                print(f"ファイル削除エラー: {e}")
 
         return response
     except Exception as e:
