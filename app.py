@@ -281,6 +281,20 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontname=fontname,
                 fontfile=fontfile
             )
+
+            # 固定の代表者名テキストを追加（左端から137mm、上端から109mm）
+            name_text = "柴田 智広"
+            name_x = 137 * MM_TO_POINTS
+            name_y = 109 * MM_TO_POINTS
+            name_font_size = 18
+
+            page.insert_text(
+                (name_x, name_y),
+                name_text,
+                fontsize=name_font_size,
+                fontname=fontname,
+                fontfile=fontfile
+            )
         else:
             # フォールバック: 組み込みフォントを使用（日本語は正しく表示されない可能性）
             return False, "日本語フォントが見つかりません。fontsフォルダにNotoSansJP-Regular.ttfなどの日本語フォントを配置してください。"
