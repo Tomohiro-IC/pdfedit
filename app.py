@@ -204,8 +204,9 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         page_width = page_rect.width
         page_height = page_rect.height
 
-        # 日付テキストを作成
-        date_text = f"{year}年{month}月{day}日"
+        # 日付テキストを作成（年月日の文字なし、全角スペース2文字で区切り）
+        # PDF側に「年　月　日」が既に印字されているため、数字のみ
+        date_text = f"{year}　　{month}　　{day}"
 
         # 座標を計算（左上から：上端から24mm下、左端から160mm右）
         margin_from_top = 24 * MM_TO_POINTS
