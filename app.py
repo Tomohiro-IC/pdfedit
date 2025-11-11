@@ -6,10 +6,11 @@ PDFファイルをアップロードし、年月日を入力してPDFの右上�
 
 import os
 import fitz  # PyMuPDF
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import tempfile
+import uuid
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
@@ -163,19 +164,16 @@ def upload_file():
     """PDFアップロードと日付追加処理"""
     # ファイルがアップロードされているかチェック
     if 'pdf_file' not in request.files:
-        flash('PDFファイルが選択されていません', 'error')
-        return redirect(url_for('index'))
+        return jsonify({'success': False, 'message': 'PDFファイルが選択されていません'}), 400
 
     file = request.files['pdf_file']
 
     if file.filename == '':
-        flash('PDFファイルが選択されていません', 'error')
-        return redirect(url_for('index'))
+        return jsonify({'success': False, 'message': 'PDFファイルが選択されていません'}), 400
 
     # ファイル形式チェック
     if not allowed_file(file.filename):
-        flash('PDFファイルのみアップロード可能です', 'error')
-        return redirect(url_for('index'))
+        return jsonify({'success': False, 'message': 'PDFファイルのみアップロード可能です'}), 400
 
     # 年月日を取得
     try:
@@ -185,27 +183,22 @@ def upload_file():
 
         # 日付の妥当性チェック
         if not (1900 <= year <= 2100):
-            flash('年は1900から2100の範囲で入力してください', 'error')
-            return redirect(url_for('index'))
+            return jsonify({'success': False, 'message': '年は1900から2100の範囲で入力してください'}), 400
 
         if not (1 <= month <= 12):
-            flash('月は1から12の範囲で入力してください', 'error')
-            return redirect(url_for('index'))
+            return jsonify({'success': False, 'message': '月は1から12の範囲で入力してください'}), 400
 
         if not (1 <= day <= 31):
-            flash('日は1から31の範囲で入力してください', 'error')
-            return redirect(url_for('index'))
+            return jsonify({'success': False, 'message': '日は1から31の範囲で入力してください'}), 400
 
         # 日付の存在チェック
         try:
             datetime(year, month, day)
         except ValueError:
-            flash('無効な日付です', 'error')
-            return redirect(url_for('index'))
+            return jsonify({'success': False, 'message': '無効な日付です'}), 400
 
     except ValueError:
-        flash('年月日は数値で入力してください', 'error')
-        return redirect(url_for('index'))
+        return jsonify({'success': False, 'message': '年月日は数値で入力してください'}), 400
 
     # ファイルを保存
     filename = secure_filename(file.filename)
@@ -214,20 +207,45 @@ def upload_file():
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], input_filename)
     file.save(input_path)
 
-    # 出力ファイル名
-    output_filename = f"dated_{input_filename}"
+    # 出力ファイル用のユニークIDを生成
+    file_id = str(uuid.uuid4())
+    output_filename = f"{file_id}.pdf"
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
     # PDFに日付を追加
     success, message = add_date_to_pdf(input_path, output_path, year, month, day)
 
     if success:
-        flash(message, 'success')
-        # ファイルをダウンロード
         # ダウンロードファイル名: 元のファイル名_yyyyMMddHHmmss.pdf
         download_timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
         download_filename = f"{base_name}_{download_timestamp}.pdf"
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'file_id': file_id,
+            'download_filename': download_filename
+        })
+    else:
+        return jsonify({'success': False, 'message': message}), 500
+
+
+@app.route('/download/<file_id>')
+def download_file(file_id):
+    """処理済みPDFをダウンロード"""
+    try:
+        # ファイル名をサニタイズ
+        safe_file_id = secure_filename(file_id)
+        output_filename = f"{safe_file_id}.pdf"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+        # ファイルが存在するかチェック
+        if not os.path.exists(output_path):
+            return "ファイルが見つかりません", 404
+
+        # ダウンロードファイル名を取得（クエリパラメータから）
+        download_filename = request.args.get('filename', 'output.pdf')
 
         return send_file(
             output_path,
@@ -235,9 +253,8 @@ def upload_file():
             download_name=download_filename,
             mimetype='application/pdf'
         )
-    else:
-        flash(message, 'error')
-        return redirect(url_for('index'))
+    except Exception as e:
+        return f"エラーが発生しました: {str(e)}", 500
 
 
 @app.route('/check-font')

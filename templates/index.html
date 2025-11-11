@@ -239,15 +239,15 @@
             ※ PDFの右上（上から50px、右端から100px）に「○○年○○月○○日」の形式で日付が追加されます
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
                     {% for category, message in messages %}
                         <div class="flash {{ category }}">{{ message }}</div>
                     {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+                {% endif %}
+            {% endwith %}
+        </div>
 
         <form method="POST" action="/upload" enctype="multipart/form-data" id="uploadForm">
             <div class="form-group">
@@ -308,11 +308,105 @@
             }
         });
 
-        // フォーム送信時の処理
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        // フラッシュメッセージを表示する関数
+        function showFlashMessage(message, category) {
+            const flashContainer = document.querySelector('.flash-messages');
+            const flashDiv = document.createElement('div');
+            flashDiv.className = `flash ${category}`;
+            flashDiv.textContent = message;
+            flashContainer.innerHTML = '';
+            flashContainer.appendChild(flashDiv);
+
+            // 5秒後に自動的に消去
+            setTimeout(() => {
+                flashDiv.style.opacity = '0';
+                setTimeout(() => flashDiv.remove(), 300);
+            }, 5000);
+        }
+
+        // フォームをリセットする関数
+        function resetForm() {
+            const form = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('pdf_file');
+            const fileLabel = document.getElementById('fileLabel');
+            const fileName = document.getElementById('fileName');
+            const submitBtn = document.getElementById('submitBtn');
+
+            // ファイル入力をクリア
+            fileInput.value = '';
+            fileName.textContent = 'PDFファイルを選択してください';
+            fileLabel.classList.remove('has-file');
+
+            // 日付を今日に戻す
+            const today = new Date();
+            document.getElementById('year').value = today.getFullYear();
+            document.getElementById('month').value = today.getMonth() + 1;
+            document.getElementById('day').value = today.getDate();
+
+            // ボタンを元に戻す
+            submitBtn.disabled = false;
+            submitBtn.textContent = '日付を追加してダウンロード';
+        }
+
+        // ファイルをダウンロードする関数
+        function downloadFile(fileId, filename) {
+            const downloadUrl = `/download/${fileId}?filename=${encodeURIComponent(filename)}`;
+
+            // 非表示のiframeを使ってダウンロード
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = downloadUrl;
+            document.body.appendChild(iframe);
+
+            // ダウンロード完了後にiframeを削除
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 1000);
+        }
+
+        // フォーム送信時の処理（Ajax）
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); // デフォルトのフォーム送信を防止
+
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = '処理中...';
+
+            // FormDataを作成
+            const formData = new FormData(this);
+
+            try {
+                // Ajaxでフォームを送信
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 成功メッセージを表示
+                    showFlashMessage(result.message, 'success');
+
+                    // ファイルをダウンロード
+                    downloadFile(result.file_id, result.download_filename);
+
+                    // フォームをリセット
+                    setTimeout(() => {
+                        resetForm();
+                    }, 500);
+                } else {
+                    // エラーメッセージを表示
+                    showFlashMessage(result.message, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '日付を追加してダウンロード';
+                }
+            } catch (error) {
+                // ネットワークエラーなど
+                showFlashMessage('エラーが発生しました: ' + error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '日付を追加してダウンロード';
+            }
         });
 
         // 今日の日付を初期値として設定
