@@ -182,6 +182,43 @@ def get_japanese_font():
     return None
 
 
+def get_japanese_font_bold():
+    """
+    日本語太字フォントのパスを取得
+    優先順位: fonts/フォルダ > システムフォント
+    """
+    # fonts/フォルダ内の太字フォントをチェック
+    font_files = [
+        os.path.join(FONT_FOLDER, 'NotoSansJP-Bold.ttf'),
+        os.path.join(FONT_FOLDER, 'NotoSansCJKjp-Bold.ttf'),
+        os.path.join(FONT_FOLDER, 'ipagp.ttf'),
+        os.path.join(FONT_FOLDER, 'ipaexg.ttf'),
+    ]
+
+    for font_file in font_files:
+        if os.path.exists(font_file):
+            return font_file
+
+    # システムフォントをチェック
+    system_fonts = [
+        '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
+        '/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc',
+        '/System/Library/Fonts/Hiragino Sans GB W6.ttc',
+        'C:\\Windows\\Fonts\\msgothic.ttc',
+        'C:\\Windows\\Fonts\\meiryob.ttc',
+        '/usr/share/fonts/truetype/takao-gothic/TakaoPGothic.ttf',
+        '/usr/share/fonts/ipa-gothic/ipagp.ttf',
+    ]
+
+    for font_file in system_fonts:
+        if os.path.exists(font_file):
+            return font_file
+
+    # 太字フォントがない場合は通常フォントを返す
+    return get_japanese_font()
+
+
 def get_stamp_image():
     """
     印鑑画像のパスを取得
@@ -230,8 +267,8 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         x = margin_from_left
         y = margin_from_top
 
-        # 日本語フォントを取得
-        font_path = get_japanese_font()
+        # 日本語太字フォントを取得
+        font_path = get_japanese_font_bold()
 
         if font_path:
             # フォントサイズ（元は12pt、2pt小さく）
@@ -239,9 +276,9 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
 
             # insert_textで直接テキストを配置（座標が明確）
             fontfile = font_path
-            fontname = "myfont"
+            fontname = "myfont_bold"
 
-            # 日付テキストを挿入
+            # 日付テキストを挿入（太字）
             # insert_textは指定座標（ベースライン）にテキストを配置
             page.insert_text(
                 (x, y),
@@ -251,7 +288,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の住所テキストを追加（左端から115mm、上端から98mm）
+            # 固定の住所テキストを追加（左端から115mm、上端から98mm、太字）
             address_text = "三重県松阪市湊町１９０番地１"
             address_x = 115 * MM_TO_POINTS
             address_y = 98 * MM_TO_POINTS
@@ -265,7 +302,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の会社名テキストを追加（左端から115mm、上端から105mm）
+            # 固定の会社名テキストを追加（左端から115mm、上端から105mm、太字）
             company_text = "インフォコネクト株式会社"
             company_x = 115 * MM_TO_POINTS
             company_y = 105 * MM_TO_POINTS
@@ -279,7 +316,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の役職テキストを追加（左端から115mm、上端から113mm）
+            # 固定の役職テキストを追加（左端から115mm、上端から113mm、太字）
             title_text = "代表取締役"
             title_x = 115 * MM_TO_POINTS
             title_y = 113 * MM_TO_POINTS
@@ -293,7 +330,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の代表者名テキストを追加（左端から140mm、上端から113mm）
+            # 固定の代表者名テキストを追加（左端から140mm、上端から113mm、太字）
             name_text = "柴田 智広"
             name_x = 140 * MM_TO_POINTS
             name_y = 113 * MM_TO_POINTS
@@ -320,7 +357,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 page.insert_image(rect, filename=stamp_path)
         else:
             # フォールバック: 組み込みフォントを使用（日本語は正しく表示されない可能性）
-            return False, "日本語フォントが見つかりません。fontsフォルダにNotoSansJP-Regular.ttfなどの日本語フォントを配置してください。"
+            return False, "日本語フォントが見つかりません。fontsフォルダにNotoSansJP-Bold.ttfなどの日本語太字フォントを配置してください。"
 
         # PDFを保存
         doc.save(output_pdf_path)
