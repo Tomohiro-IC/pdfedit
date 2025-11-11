@@ -224,10 +224,15 @@ def upload_file():
     if success:
         flash(message, 'success')
         # ファイルをダウンロード
+        # ダウンロードファイル名: 元のファイル名_yyyyMMddHHmmss.pdf
+        download_timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        download_filename = f"{base_name}_{download_timestamp}.pdf"
+
         return send_file(
             output_path,
             as_attachment=True,
-            download_name=f"dated_{filename}",
+            download_name=download_filename,
             mimetype='application/pdf'
         )
     else:
