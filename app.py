@@ -253,6 +253,20 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontname=fontname,
                 fontfile=fontfile
             )
+
+            # 固定の会社名テキストを追加（左端から115mm、上端から120mm）
+            company_text = "インフォコネクト株式会社"
+            company_x = 115 * MM_TO_POINTS
+            company_y = 120 * MM_TO_POINTS
+            company_font_size = 15
+
+            page.insert_text(
+                (company_x, company_y),
+                company_text,
+                fontsize=company_font_size,
+                fontname=fontname,
+                fontfile=fontfile
+            )
         else:
             # フォールバック: 組み込みフォントを使用（日本語は正しく表示されない可能性）
             return False, "日本語フォントが見つかりません。fontsフォルダにNotoSansJP-Regular.ttfなどの日本語フォントを配置してください。"
