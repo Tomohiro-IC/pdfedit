@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-PDF日付追記Webアプリケーション
-PDFファイルをアップロードし、年月日を入力してPDFの右上に日本語で日付を追記します。
+コラボフロー注文書編集ツール
+注文書に注文日と社名蘭を記入します。
+PDFファイルをアップロードし、年月日を入力すると注文日と住所が自動的に記入されます。
 """
 
 import os
@@ -260,7 +261,7 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         doc.save(output_pdf_path)
         doc.close()
 
-        return True, f"日付「{date_text}」と住所「三重県松阪市湊町１９０番地１」をPDFに追加しました"
+        return True, "PDFファイルの編集が完了しました"
 
     except Exception as e:
         return False, f"エラーが発生しました: {str(e)}"

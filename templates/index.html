@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF日付追記ツール</title>
+    <title>コラボフロー注文書編集ツール</title>
     <style>
         * {
             margin: 0;
@@ -227,16 +227,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>📄 PDF日付追記ツール</h1>
-        <p class="subtitle">PDFファイルに日付を追加します</p>
+        <h1>📄 コラボフロー注文書編集ツール</h1>
+        <p class="subtitle">注文書に注文日と社名蘭を記入します</p>
 
         <div class="info-box">
             <strong>使い方：</strong>
-            1. PDFファイルを選択<br>
-            2. 年月日を入力<br>
-            3. 「日付を追加してダウンロード」ボタンをクリック<br>
+            1. 注文書PDFファイルを選択<br>
+            2. 注文日（年月日）を入力<br>
+            3. 「編集してダウンロード」ボタンをクリック<br>
             <br>
-            ※ PDFの左上（上端から20mm下、左端から150mm右）に「○○年○○月○○日」の形式で日付が追加されます
+            ※ 注文日と社名（住所）が自動的に記入されます
         </div>
 
         <div class="flash-messages">
@@ -283,7 +283,7 @@
             </div>
 
             <button type="submit" class="submit-btn" id="submitBtn">
-                日付を追加してダウンロード
+                編集してダウンロード
             </button>
         </form>
 
@@ -347,7 +347,7 @@
 
             // ボタンを元に戻す
             submitBtn.disabled = false;
-            submitBtn.textContent = '日付を追加してダウンロード';
+            submitBtn.textContent = '編集してダウンロード';
         }
 
         // ファイルをダウンロードする関数
@@ -401,13 +401,13 @@
                     // エラーメッセージを表示
                     showFlashMessage(result.message, 'error');
                     submitBtn.disabled = false;
-                    submitBtn.textContent = '日付を追加してダウンロード';
+                    submitBtn.textContent = '編集してダウンロード';
                 }
             } catch (error) {
                 // ネットワークエラーなど
                 showFlashMessage('エラーが発生しました: ' + error.message, 'error');
                 submitBtn.disabled = false;
-                submitBtn.textContent = '日付を追加してダウンロード';
+                submitBtn.textContent = '編集してダウンロード';
             }
         });
 
