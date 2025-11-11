@@ -74,7 +74,7 @@ def get_version_info():
         ).strip()
 
         commit_date = subprocess.check_output(
-            ['git', 'log', '-1', '--format=%cd', '--date=format:%Y-%m-%d %H:%M'],
+            ['git', 'log', '-1', '--format=%cd', '--date=format-local:%Y-%m-%d %H:%M'],
             stderr=subprocess.DEVNULL,
             cwd=str(cwd),
             env=env,

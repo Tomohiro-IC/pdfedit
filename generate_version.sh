@@ -11,7 +11,8 @@ cd "$(dirname "$0")"
 if command -v git &> /dev/null && [ -d .git ]; then
     COMMIT_HASH=$(git rev-parse --short HEAD)
     # 日本時間（JST）でコミット日時を取得
-    COMMIT_DATE=$(TZ=Asia/Tokyo git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M')
+    # format-localを使用してローカルタイムゾーン（Asia/Tokyo）に変換
+    COMMIT_DATE=$(TZ=Asia/Tokyo git log -1 --format=%cd --date=format-local:'%Y-%m-%d %H:%M')
     VERSION="v${COMMIT_HASH} (${COMMIT_DATE} JST)"
 
     echo "$VERSION" > VERSION
