@@ -39,24 +39,45 @@ os.makedirs(FONT_FOLDER, exist_ok=True)
 def get_version_info():
     """
     バージョン情報を取得
-    Gitコミットハッシュと日時を返す
+    優先順位: VERSIONファイル > Gitコマンド > unknown
     """
+    # 1. VERSIONファイルから読み込み（本番環境用）
+    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+    if os.path.exists(version_file):
+        try:
+            with open(version_file, 'r', encoding='utf-8') as f:
+                return f.read().strip()
+        except Exception:
+            pass
+
+    # 2. Gitコマンドから取得（開発環境用）
     try:
         # Gitコミットハッシュを取得（短縮版）
         commit_hash = subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            cwd=os.path.dirname(__file__) or '.'
         ).decode('utf-8').strip()
 
         # コミット日時を取得
         commit_date = subprocess.check_output(
             ['git', 'log', '-1', '--format=%cd', '--date=format:%Y-%m-%d %H:%M'],
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            cwd=os.path.dirname(__file__) or '.'
         ).decode('utf-8').strip()
 
-        return f"v{commit_hash} ({commit_date})"
+        version = f"v{commit_hash} ({commit_date})"
+
+        # VERSIONファイルに保存（次回用）
+        try:
+            with open(version_file, 'w', encoding='utf-8') as f:
+                f.write(version)
+        except Exception:
+            pass
+
+        return version
     except Exception:
-        # Gitが使えない場合や.gitディレクトリがない場合
+        # Gitが使えない場合
         return "unknown"
 
 
