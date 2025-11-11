@@ -209,13 +209,13 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         # PDF側に「年　月　日」が既に印字されているため、数字のみ
         date_text = f"{year}　　{month}　　{day}"
 
-        # 座標を計算（左上から：上端から23mm下、左端から156mm右）
-        margin_from_top = 23 * MM_TO_POINTS
+        # 座標を計算（左上から：上端から22.5mm下、左端から156mm右）
+        margin_from_top = 22.5 * MM_TO_POINTS
         margin_from_left = 156 * MM_TO_POINTS
 
         # PDF座標系での位置
         # PyMuPDFの座標系：左上が原点(0,0)、y軸は上から下に増加
-        # したがって、上端から23mm下の位置は単純に margin_from_top
+        # したがって、上端から22.5mm下の位置は単純に margin_from_top
         x = margin_from_left
         y = margin_from_top
 
