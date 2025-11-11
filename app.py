@@ -14,6 +14,7 @@ import uuid
 from urllib.parse import quote
 import json
 import time
+import subprocess
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
@@ -33,6 +34,30 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 os.makedirs(FONT_FOLDER, exist_ok=True)
+
+
+def get_version_info():
+    """
+    バージョン情報を取得
+    Gitコミットハッシュと日時を返す
+    """
+    try:
+        # Gitコミットハッシュを取得（短縮版）
+        commit_hash = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            stderr=subprocess.DEVNULL
+        ).decode('utf-8').strip()
+
+        # コミット日時を取得
+        commit_date = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%cd', '--date=format:%Y-%m-%d %H:%M'],
+            stderr=subprocess.DEVNULL
+        ).decode('utf-8').strip()
+
+        return f"v{commit_hash} ({commit_date})"
+    except Exception:
+        # Gitが使えない場合や.gitディレクトリがない場合
+        return "unknown"
 
 
 def allowed_file(filename):
@@ -196,7 +221,8 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
 @app.route('/')
 def index():
     """トップページ"""
-    return render_template('index.html')
+    version = get_version_info()
+    return render_template('index.html', version=version)
 
 
 @app.route('/upload', methods=['POST'])
