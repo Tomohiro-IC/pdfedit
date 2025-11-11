@@ -7,11 +7,12 @@ set -e
 # スクリプトのディレクトリに移動
 cd "$(dirname "$0")"
 
-# Gitコミット情報を取得
+# Gitコミット情報を取得（日本時間）
 if command -v git &> /dev/null && [ -d .git ]; then
     COMMIT_HASH=$(git rev-parse --short HEAD)
-    COMMIT_DATE=$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M')
-    VERSION="v${COMMIT_HASH} (${COMMIT_DATE})"
+    # 日本時間（JST）でコミット日時を取得
+    COMMIT_DATE=$(TZ=Asia/Tokyo git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M')
+    VERSION="v${COMMIT_HASH} (${COMMIT_DATE} JST)"
 
     echo "$VERSION" > VERSION
     echo "✓ VERSIONファイルを生成しました: $VERSION"

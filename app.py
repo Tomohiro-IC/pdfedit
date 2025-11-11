@@ -63,6 +63,9 @@ def get_version_info():
     # Gitコマンドから取得（開発環境）
     try:
         cwd = Path(__file__).parent or Path('.')
+        env = os.environ.copy()
+        env['TZ'] = 'Asia/Tokyo'  # 日本時間を使用
+
         commit_hash = subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
             stderr=subprocess.DEVNULL,
@@ -74,10 +77,11 @@ def get_version_info():
             ['git', 'log', '-1', '--format=%cd', '--date=format:%Y-%m-%d %H:%M'],
             stderr=subprocess.DEVNULL,
             cwd=str(cwd),
+            env=env,
             text=True
         ).strip()
 
-        _version_cache = f"v{commit_hash} ({commit_date})"
+        _version_cache = f"v{commit_hash} ({commit_date} JST)"
 
         # VERSIONファイルに保存（次回用）
         try:
