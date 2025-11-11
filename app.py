@@ -211,9 +211,11 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
         margin_from_top = 20 * MM_TO_POINTS
         margin_from_left = 150 * MM_TO_POINTS
 
-        # PDF座標系での位置（左下原点なのでy座標を変換）
+        # PDF座標系での位置
+        # PyMuPDFの座標系：左上が原点(0,0)、y軸は上から下に増加
+        # したがって、上端から20mm下の位置は単純に margin_from_top
         x = margin_from_left
-        y = page_height - margin_from_top
+        y = margin_from_top
 
         # 日本語フォントを取得
         font_path = get_japanese_font()
