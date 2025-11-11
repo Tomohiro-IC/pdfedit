@@ -312,8 +312,8 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
             if stamp_path:
                 stamp_x = 163 * MM_TO_POINTS
                 stamp_y = 96 * MM_TO_POINTS
-                stamp_width = 15 * MM_TO_POINTS   # 幅15mm
-                stamp_height = 15 * MM_TO_POINTS  # 高さ15mm
+                stamp_width = 25 * MM_TO_POINTS   # 幅25mm
+                stamp_height = 25 * MM_TO_POINTS  # 高さ25mm
 
                 # 画像を挿入する矩形領域を定義
                 rect = fitz.Rect(stamp_x, stamp_y, stamp_x + stamp_width, stamp_y + stamp_height)
