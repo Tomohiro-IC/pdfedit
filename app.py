@@ -240,10 +240,10 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の住所テキストを追加（左端から115mm、上端から95mm）
+            # 固定の住所テキストを追加（左端から115mm、上端から102mm）
             address_text = "三重県松阪市湊町１９０番地１"
             address_x = 115 * MM_TO_POINTS
-            address_y = 95 * MM_TO_POINTS
+            address_y = 102 * MM_TO_POINTS
             address_font_size = 13
 
             page.insert_text(
