@@ -254,10 +254,10 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の会社名テキストを追加（左端から115mm、上端から103mm）
+            # 固定の会社名テキストを追加（左端から115mm、上端から104mm）
             company_text = "インフォコネクト株式会社"
             company_x = 115 * MM_TO_POINTS
-            company_y = 103 * MM_TO_POINTS
+            company_y = 104 * MM_TO_POINTS
             company_font_size = 15
 
             page.insert_text(
@@ -268,10 +268,10 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の役職テキストを追加（左端から115mm、上端から111mm）
+            # 固定の役職テキストを追加（左端から115mm、上端から110mm）
             title_text = "代表取締役"
             title_x = 115 * MM_TO_POINTS
-            title_y = 111 * MM_TO_POINTS
+            title_y = 110 * MM_TO_POINTS
             title_font_size = 13
 
             page.insert_text(
@@ -282,10 +282,10 @@ def add_date_to_pdf(input_pdf_path, output_pdf_path, year, month, day):
                 fontfile=fontfile
             )
 
-            # 固定の代表者名テキストを追加（左端から137mm、上端から109mm）
+            # 固定の代表者名テキストを追加（左端から139mm、上端から110mm）
             name_text = "柴田 智広"
-            name_x = 137 * MM_TO_POINTS
-            name_y = 109 * MM_TO_POINTS
+            name_x = 139 * MM_TO_POINTS
+            name_y = 110 * MM_TO_POINTS
             name_font_size = 18
 
             page.insert_text(
